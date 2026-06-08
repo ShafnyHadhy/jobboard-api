@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +8,109 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  EMPLOYER
+  JOBSEEKER
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(JOBSEEKER)
+  createdAt DateTime @default(now())
+
+  company       Company?       // An EMPLOYER can own one company
+  applications  Application[]  // A JOBSEEKER can have many applications
+  notifications Notification[]
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  website     String?
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+
+  ownerId String @unique        // One company per employer (1:1)
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  jobs Job[]
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  location    String
+  type        JobType   @default(FULL_TIME)
+  salary      String?
+  status      JobStatus @default(OPEN)
+  createdAt   DateTime  @default(now())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  applications Application[]
+
+  // Indexes for search & filter queries
+  @@index([title])
+  @@index([location])
+  @@index([status])
+  @@index([companyId])
+}
+
+model Application {
+  id          String            @id @default(uuid())
+  coverLetter String?
+  status      ApplicationStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+
+  jobId  String
+  job    Job  @relation(fields: [jobId], references: [id])
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  // One application per job per user — enforced at DB level
+  @@unique([jobId, userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
