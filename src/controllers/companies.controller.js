@@ -40,4 +40,76 @@ const create = async (req, res) => {
     })
 }
 
-module.exports = { create }
+// GET /api/companies/:id — public
+const getById = async (req, res) => {
+
+    const company = await prisma.company.findUnique({
+
+        where: { id: req.params.id },
+        include: {
+            owner: {
+                select: { id: true, name: true, email: true },
+            },
+            jobs: {
+                where: { status: 'OPEN' },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    title: true,
+                    location: true,
+                    type: true,
+                    salary: true,
+                    createdAt: true,
+                },
+            },
+        },
+    })
+
+    if (!company) {
+        return res.status(404).json({ error: 'Company not found.' })
+    }
+
+    res.json({ company })
+}
+
+// PATCH /api/companies/:id — EMPLOYER only (owner)
+const update = async (req, res) => {
+
+    const { name, description, website, logoUrl } = req.body
+
+    const company = await prisma.company.findUnique({
+        where: { id: req.params.id },
+    })
+
+    if (!company) {
+        return res.status(404).json({ error: 'Company not found.' })
+    }
+    // Verify ownership
+    if (company.ownerId !== req.user.id) {
+        return res.status(403).json({ error: 'You can only edit your own company.' })
+    }
+
+    // Build partial update
+    const updateData = {}
+    if (name !== undefined) updateData.name = name
+    if (description !== undefined) updateData.description = description || null
+    if (website !== undefined) updateData.website = website || null
+    if (logoUrl !== undefined) updateData.logoUrl = logoUrl || null
+
+    const updatedCompany = await prisma.company.update({
+        where: { id: req.params.id },
+        data: updateData,
+        include: {
+            owner: {
+                select: { id: true, name: true, email: true },
+            },
+        },
+    })
+
+    res.json({
+        message: 'Company updated successfully.',
+        company: updatedCompany,
+    })
+}
+
+module.exports = { create, getById, update }
