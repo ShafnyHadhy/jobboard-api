@@ -1,6 +1,7 @@
 const prisma = require('../config/db')
 
 const VALID_JOB_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'ONSITE', 'REMOTE', 'HYBRID'];
+const VALID_JOB_STATUSES = ['OPEN', 'CLOSED']
 
 const create = async (req, res) => {
     const { title, description, location, type, salary } = req.body;
@@ -53,31 +54,86 @@ const create = async (req, res) => {
     })
 }
 
+// GET /api/jobs — public, paginated, filterable, full-text searchable
 const getAll = async (req, res) => {
 
     const page = Math.max(parseInt(req.query.page) || 1, 1)
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50)
     const skip = (page - 1) * limit
+    const search = req.query.search?.trim()
 
-    // Build dynamic filter from query params
+    // ─── Full-text search path ───────────────────────────
+    if (search) {
+        // Convert "react developer" → "react & developer" for tsquery
+        const tsQueryString = search
+            .split(/\s+/)
+            .filter(Boolean)
+            .join(' & ')
+        // Raw SQL: find matching job IDs ranked by relevance
+        const matchingJobs = await prisma.$queryRaw`
+      SELECT id,
+        ts_rank(
+          to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')),
+          to_tsquery('english', ${tsQueryString})
+        ) AS rank
+      FROM "Job"
+      WHERE
+        to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))
+        @@ to_tsquery('english', ${tsQueryString})
+        AND status = 'OPEN'
+      ORDER BY rank DESC
+      LIMIT ${limit}
+      OFFSET ${skip}
+    `
+        const totalResult = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count
+      FROM "Job"
+      WHERE
+        to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))
+        @@ to_tsquery('english', ${tsQueryString})
+        AND status = 'OPEN'
+    `
+        const total = totalResult[0]?.count || 0
+        const jobIds = matchingJobs.map((j) => j.id)
+
+        // Fetch full job data with relations using Prisma
+        const jobs = jobIds.length > 0
+            ? await prisma.job.findMany({
+                where: { id: { in: jobIds } },
+                include: {
+                    company: {
+                        select: { id: true, name: true, logoUrl: true },
+                    },
+                },
+            })
+            : []
+
+        // Preserve relevance order from raw query
+        const orderedJobs = jobIds.map((id) => jobs.find((j) => j.id === id))
+
+        return res.json({
+            jobs: orderedJobs,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        })
+    }
+
+    // ─── Standard filter path (no search) ────────────────
     const where = {}
-
     if (req.query.location) {
         where.location = { contains: req.query.location, mode: 'insensitive' }
     }
-
     if (req.query.type && VALID_JOB_TYPES.includes(req.query.type)) {
         where.type = req.query.type
     }
-
     if (req.query.status && VALID_JOB_STATUSES.includes(req.query.status)) {
         where.status = req.query.status
     } else {
-        where.status = 'OPEN' // Default: only show open jobs
-    }
-
-    if (req.query.search) {
-        where.title = { contains: req.query.search, mode: 'insensitive' }
+        where.status = 'OPEN'
     }
 
     const [jobs, total] = await Promise.all([
@@ -89,13 +145,13 @@ const getAll = async (req, res) => {
             include: {
                 company: {
                     select: { id: true, name: true, logoUrl: true },
-                }
+                },
             },
         }),
         prisma.job.count({ where }),
     ])
 
-    res.status(200).json({
+    res.json({
         jobs,
         pagination: {
             page,
@@ -104,7 +160,6 @@ const getAll = async (req, res) => {
             totalPages: Math.ceil(total / limit),
         },
     })
-
 }
 
 const getById = async (req, res) => {
