@@ -1,4 +1,6 @@
 const prisma = require('../config/db')
+const { Prisma } = require('../../generated/prisma')
+const { invalidateJobCache } = require('../middleware/cache')
 
 const VALID_JOB_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'ONSITE', 'REMOTE', 'HYBRID'];
 const VALID_JOB_STATUSES = ['OPEN', 'CLOSED']
@@ -47,6 +49,8 @@ const create = async (req, res) => {
             },
         },
     })
+
+    await invalidateJobCache() // ← NEW
 
     res.status(201).json({
         message: 'Job created successfully.',
@@ -226,6 +230,9 @@ const update = async (req, res) => {
             },
         },
     })
+
+    await invalidateJobCache() // ← NEW
+
     res.json({
         message: 'Job updated successfully.',
         job: updatedJob,
@@ -248,6 +255,8 @@ const remove = async (req, res) => {
     }
 
     await prisma.job.delete({ where: { id: req.params.id } })
+
+    await invalidateJobCache() // ← NEW
 
     res.status(200).json({ message: 'Job deleted successfully.' })
 }
