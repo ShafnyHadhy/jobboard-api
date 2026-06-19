@@ -7,7 +7,7 @@ const cacheMiddleware = (req, res, next) => {
 
     if (req.method !== 'GET') return next();
 
-    const cacheKey = `${CACHE_PREFIX}${req.originUrl}`
+    const cacheKey = `${CACHE_PREFIX}${req.originalUrl}`
 
     redis
         .get(cacheKey)
@@ -24,7 +24,7 @@ const cacheMiddleware = (req, res, next) => {
                 if (res.statusCode === 200) {
                     redis
                         .setex(cacheKey, CACHE_TTL, JSON.stringify(body))
-                        .catch((error) => console.error('Cache write error:', err))
+                        .catch((error) => console.error('Cache write error:', error))
                 }
 
                 return originalJson({ ...body, _cache: 'MISS' })
