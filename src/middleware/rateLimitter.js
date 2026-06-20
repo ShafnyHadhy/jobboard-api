@@ -60,11 +60,11 @@ const authLimiter = createRateLimiter({
     keyPrefix: 'auth:',
 })
 
-const applicationLimitter = createRateLimiter({
+const applicationLimiter = createRateLimiter({
     max: 5,
     windowSeconds: 900,
     keyPrefix: 'apply:',
     keyGenerator: (req) => req.user.id,
 })
 
-module.exports = { createRateLimiter, authLimiter, applicationLimitter }
+module.exports = { createRateLimiter, authLimiter, applicationLimiter }

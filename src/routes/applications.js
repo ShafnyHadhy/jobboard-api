@@ -7,9 +7,10 @@ const {
     getJobApplications,
     updateStatus,
 } = require('../controllers/applications.controller')
+const { applicationLimiter } = require('../middleware/rateLimitter')
 
 // JOBSEEKER routes
-router.post('/:jobId', authenticate, authorize('JOBSEEKER'), apply)
+router.post('/:jobId', authenticate, authorize('JOBSEEKER'), applicationLimiter, apply)
 router.get('/my', authenticate, authorize('JOBSEEKER'), getMyApplications)
 
 // EMPLOYER routes
