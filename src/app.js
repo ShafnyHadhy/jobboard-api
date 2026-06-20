@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth')
 const companyRoutes = require('./routes/companies')
 const jobRoutes = require('./routes/jobs')
 const applicationRoutes = require('./routes/applications')
+const logger = require('./middleware/logger')
 
 const app = express()
 
@@ -14,6 +15,7 @@ const app = express()
 app.use(helmet())
 app.use(cors())
 app.use(express.json())
+app.use(logger)
 
 // ─── Health Check 
 app.get('/health', (req, res) => {
