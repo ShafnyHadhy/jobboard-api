@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  # ─── API Backend ───────────────────────────────────────
+  api:
+    build: .
+    container_name: jobboard-api
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:secret@postgres:5432/jobboard
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET:-your_super_secret_key_change_this}
+
+  # ─── PostgreSQL Database ───────────────────────────────
   postgres:
     image: postgres:16
     container_name: jobboard-db
@@ -14,6 +33,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # ─── Redis Cache ───────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: jobboard-redis
