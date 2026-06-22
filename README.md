@@ -1,6 +1,8 @@
-# JobBoard API
+# Job Board API
 
-A production-ready Job Board SaaS REST API built to demonstrate core backend engineering concepts - authentication, caching, rate limiting, database indexing, structured logging, and containerization - all working together in a single, real-world application.
+A production-ready Job Board backend built to demonstrate core backend engineering concepts. It features role-based access control (Employers vs. Jobseekers), a robust caching layer, PostgreSQL full-text search, and structured logging.
+
+The entire stack is containerized with Docker, requiring zero local dependencies to run.
 
 ---
 
@@ -14,16 +16,27 @@ Built while working as an Associate Software Engineer to deepen backend fundamen
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Runtime | Node.js |
-| Framework | Express.js |
-| Database | PostgreSQL 16 |
-| ORM | Prisma 7 |
-| Cache | Redis 7 |
-| Auth | JWT + Google OAuth 2.0 |
-| Containerization | Docker + Docker Compose |
-| Frontend | React (minimal — job feed + apply flow) |
+- **Runtime:** Node.js (Express 5)
+- **Database:** PostgreSQL 16 (via Prisma 7 ORM)
+- **Cache & Rate Limiting:** Redis 7
+- **Authentication:** Stateless JWT + bcryptjs
+- **Containerization:** Docker + Docker Compose
+
+---
+
+## Core Engineering Concepts Implemented
+
+This project was built from scratch to demonstrate 8 fundamental backend concepts:
+1. **RESTful API Design:** Clean resource routing (`/api/jobs`, `/api/applications`), correct HTTP verbs, and semantic status codes (400, 401, 403, 404, 409, 429).
+2. **Authentication & Authorization:** JWT-based stateless auth with middleware enforcing role-based access (e.g., only Employers can patch job statuses).
+3. **Relational Database Design:** 5 normalized models enforcing strict data integrity (e.g., unique constraints to prevent duplicate applications).
+4. **Database Indexing:** Implementation of a PostgreSQL GIN index to power fast full-text search across job titles and descriptions.
+5. **Caching:** A Redis cache-aside pattern on read-heavy routes (`GET /api/jobs`) with automated invalidation on writes.
+6. **Rate Limiting:** Redis-backed sliding window rate limiters (IP-based for auth routes, User-ID-based for application routes) to prevent brute-forcing and spam.
+7. **Structured Logging:** Middleware that outputs queryable JSON logs for every HTTP request, tracking request IDs and latency.
+8. **Containerization:** A multi-stage Docker build for the Node app, orchestrated via `docker-compose` alongside PostgreSQL and Redis.
+
+*For detailed notes on how this architecture scales, see [SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md).*
 
 ---
 
@@ -53,6 +66,31 @@ Built while working as an Associate Software Engineer to deepen backend fundamen
 └──────────────┘      └────────────────┘
 ```
 
+---
+
+## Quick Start (Docker)
+
+You do not need Node.js or PostgreSQL installed on your host machine. You only need Docker Desktop.
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd jobboard-api
+   ```
+2. **Start the stack**
+   ```bash
+   docker compose up -d --build
+   ```
+3. **Run database migrations**
+   ```bash
+   # Executes Prisma migrations inside the running API container
+   docker exec -it jobboard-api npx prisma migrate deploy
+   ```
+4. **The API will be available at http://localhost:3000.**
+   ```
+5. **Health check: `GET /health` → `{ "status": "ok" }`**
+   ```bash
+   curl -X GET http://localhost:3000/health
+   ```
 ---
 
 ## Core Features
@@ -141,48 +179,17 @@ USER ──────────────── COMPANY
 
 USER ──── NOTIFICATION
 ```
+---
 
 **Key design decisions:**
 - `role` enum on `USER` (`EMPLOYER | JOBSEEKER`) is the single source of truth for permissions - no separate roles table
 - `salary` on `Job` is nullable - reflects real-world listings that don't disclose compensation
 - `Application` has a unique constraint on `(jobId, userId)` - enforced at DB level, not just application layer
 - `Job.status` (`OPEN | CLOSED`) allows soft-closing without data loss
-
----
-
-## Getting Started
-
-### Prerequisites
-- Docker Desktop
-- Node.js 18+ (via nvm recommended)
-
-### Run locally
-
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/jobboard-api.git
-cd jobboard-api
-
-# Start PostgreSQL and Redis
-docker compose up -d
-
-# Install dependencies
-npm install
-
-# Set up environment
-cp .env.example .env
-# Fill in JWT_SECRET and GOOGLE_CLIENT credentials in .env
-
-# Run database migrations
-npx prisma migrate dev
-
-# Start the dev server
-npm run dev
 ```
 
-Server runs at `http://localhost:3000`
-
 Health check: `GET /health` → `{ "status": "ok" }`
+---
 
 ### Environment variables
 
@@ -195,40 +202,6 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 PORT=3000
 ```
-
----
-
-## Project Structure
-
-```
-jobboard-api/
-├── prisma/
-│   ├── schema.prisma          # Database models and relations
-│   └── migrations/            # Migration history
-├── src/
-│   ├── config/
-│   │   ├── db.js              # Prisma client singleton
-│   │   └── redis.js           # Redis client (ioredis)
-│   ├── middleware/
-│   │   ├── auth.js            # JWT verification, role guard
-│   │   ├── rateLimiter.js     # Route-specific rate limits
-│   │   └── logger.js          # Structured request logging
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── jobs.js
-│   │   ├── companies.js
-│   │   └── applications.js
-│   ├── controllers/
-│   │   ├── auth.controller.js
-│   │   ├── jobs.controller.js
-│   │   ├── companies.controller.js
-│   │   └── applications.controller.js
-│   └── app.js
-├── docker-compose.yml
-├── .env.example
-└── SYSTEM_DESIGN.md           # Scale analysis and architectural decisions
-```
-
 ---
 
 ## What I Learned
@@ -244,16 +217,6 @@ This project was built specifically to gain hands-on experience with backend con
 
 ---
 
-## Roadmap
+🤝 Contributing
 
-- [ ] Email notifications via Resend when application status changes
-- [ ] Job search with filters (location, type, salary range)
-- [ ] Employer analytics dashboard (views per listing, application funnel)
-- [ ] Webhook support for ATS integrations
-- [ ] Kubernetes deployment manifests
-
----
-
-## License
-
-MIT
+This is a personal portfolio project, but feedback and suggestions are welcome!
