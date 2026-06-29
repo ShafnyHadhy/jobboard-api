@@ -5,6 +5,7 @@ import Navbar from '../components/layout/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import SeekerDashboard from './pages/SeekerDashboard';
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/dashboard/seeker" element={<SeekerDashboard />} />
                 <Route path="*" element={<div className="p-10 text-center text-xl">Building...</div>} />
               </Routes>
             </main>
