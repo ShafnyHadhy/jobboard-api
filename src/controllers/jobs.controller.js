@@ -181,6 +181,21 @@ const getById = async (req, res) => {
     res.status(200).json({ job })
 }
 
+const getMyJobs = async (req, res) => {
+    const company = await prisma.company.findUnique({
+        where: { ownerId: req.user.id },
+    })
+    // If they don't have a company yet, they have 0 jobs
+    if (!company) {
+        return res.json({ jobs: [] })
+    }
+    const jobs = await prisma.job.findMany({
+        where: { companyId: company.id },
+        orderBy: { createdAt: 'desc' },
+    })
+    res.json({ jobs })
+}
+
 const update = async (req, res) => {
 
     const { title, description, location, type, salary, status } = req.body
@@ -261,4 +276,4 @@ const remove = async (req, res) => {
     res.status(200).json({ message: 'Job deleted successfully.' })
 }
 
-module.exports = { create, getAll, getById, update, remove }
+module.exports = { create, getAll, getById, update, remove, getMyJobs }

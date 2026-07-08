@@ -40,6 +40,17 @@ const create = async (req, res) => {
     })
 }
 
+// GET /api/companies/my — EMPLOYER only (NEW)
+const getMyCompany = async (req, res) => {
+    const company = await prisma.company.findUnique({
+        where: { ownerId: req.user.id },
+    })
+    if (!company) {
+        return res.status(404).json({ error: 'Company profile not created yet.' })
+    }
+    res.json({ company })
+}
+
 // GET /api/companies/:id — public
 const getById = async (req, res) => {
 
@@ -112,4 +123,4 @@ const update = async (req, res) => {
     })
 }
 
-module.exports = { create, getById, update }
+module.exports = { create, getById, update, getMyCompany }

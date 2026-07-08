@@ -2,9 +2,12 @@ const express = require('express')
 const router = express.Router()
 const { authenticate, authorize } = require('../middleware/auth')
 const { cacheMiddleware } = require('../middleware/cache')
-const { create, getAll, getById, update, remove } = require('../controllers/jobs.controller')
+const { create, getAll, getById, update, remove, getMyJobs } = require('../controllers/jobs.controller')
 
 router.get('/', cacheMiddleware, getAll);
+
+router.get('/my', authenticate, authorize('EMPLOYER'), getMyJobs)
+
 router.get('/:id', getById);
 
 // POST /api/jobs — create a job posting (EMPLOYER only)
