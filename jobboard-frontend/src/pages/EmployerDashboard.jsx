@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Building, Briefcase, CheckCircle2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Building, Briefcase, List, CheckCircle2, MapPin, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -8,47 +9,93 @@ import { Navigate } from 'react-router-dom';
 
 export default function EmployerDashboard() {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('COMPANY'); // 'COMPANY' or 'JOB'
+    const queryClient = useQueryClient();
+    const [activeTab, setActiveTab] = useState('COMPANY'); // 'COMPANY', 'JOB', or 'MANAGE'
     const [message, setMessage] = useState(null);
 
-    // Form for creating a company
-    const { register: registerCompany, handleSubmit: handleCompanySubmit, reset: resetCompany } = useForm();
-
-    // Form for posting a job
+    // Forms
+    const { register: registerCompany, handleSubmit: handleCompanySubmit, reset: resetCompany, setValue } = useForm();
     const { register: registerJob, handleSubmit: handleJobSubmit, reset: resetJob } = useForm();
+
+    // 1. Fetch Employer's Company
+    const { data: companyData, isLoading: isLoadingCompany } = useQuery({
+        queryKey: ['my-company'],
+        queryFn: async () => {
+            try {
+                const { data } = await api.get('/companies/my');
+                return data.company;
+            } catch (err) {
+                if (err.response?.status === 404) return null; // Normal if they haven't created one yet
+                throw err;
+            }
+        },
+    });
+
+    // 2. Fetch Employer's Posted Jobs
+    const { data: jobsData, isLoading: isLoadingJobs } = useQuery({
+        queryKey: ['my-jobs'],
+        queryFn: async () => {
+            const { data } = await api.get('/jobs/my');
+            return data.jobs;
+        },
+        enabled: !!companyData, // Only fetch jobs if they have a company
+    });
+
+    // Pre-fill the company form if data exists
+    useEffect(() => {
+        if (companyData) {
+            setValue('name', companyData.name);
+            setValue('description', companyData.description || '');
+            setValue('website', companyData.website || '');
+            setValue('logoUrl', companyData.logoUrl || '');
+        }
+    }, [companyData, setValue]);
 
     // Protect route
     if (!user || user.role !== 'EMPLOYER') {
         return <Navigate to="/" />;
     }
 
+    // Handle Company Create OR Update
     const onCompanySubmit = async (data) => {
         setMessage(null);
         try {
-            await api.post('/companies', data);
-            setMessage({ type: 'success', text: 'Company profile created successfully! You can now post jobs.' });
-            resetCompany();
+            if (companyData) {
+                // Update existing company
+                await api.patch(`/companies/${companyData.id}`, data);
+                setMessage({ type: 'success', text: 'Company profile updated successfully!' });
+            } else {
+                // Create new company
+                await api.post('/companies', data);
+                setMessage({ type: 'success', text: 'Company profile created! You can now post jobs.' });
+            }
+            queryClient.invalidateQueries(['my-company']); // Refresh data
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to create company.' });
+            setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to save company.' });
         }
     };
 
+    // Handle Job Post
     const onJobSubmit = async (data) => {
         setMessage(null);
         try {
             await api.post('/jobs', data);
-            setMessage({ type: 'success', text: 'Job posted successfully! It is now live on the public feed.' });
+            setMessage({ type: 'success', text: 'Job posted successfully! It is now live.' });
             resetJob();
+            queryClient.invalidateQueries(['my-jobs']); // Refresh job list
+            setActiveTab('MANAGE'); // Send them to the jobs list to see it
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to post job.' });
         }
     };
 
+    if (isLoadingCompany) return <div className="text-center py-20">Loading dashboard...</div>;
+
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Employer Dashboard</h1>
-                <p className="mt-2 text-gray-500">Manage your company presence and post new opportunities.</p>
+                <p className="mt-2 text-gray-500">Manage your company presence and open positions.</p>
             </div>
 
             {message && (
@@ -63,41 +110,51 @@ export default function EmployerDashboard() {
             )}
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 mb-8">
+            <div className="border-b border-gray-200 mb-8 overflow-x-auto">
                 <nav className="-mb-px flex space-x-8">
                     <button
                         onClick={() => { setActiveTab('COMPANY'); setMessage(null); }}
-                        className={`flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'COMPANY'
-                                ? 'border-slate-900 text-slate-900'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        className={`flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'COMPANY' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
-                        <Building className="w-4 h-4" /> Company Setup
+                        <Building className="w-4 h-4" /> {companyData ? 'Edit Company Profile' : 'Setup Company'}
                     </button>
+
                     <button
                         onClick={() => { setActiveTab('JOB'); setMessage(null); }}
-                        className={`flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'JOB'
-                                ? 'border-slate-900 text-slate-900'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        className={`flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'JOB' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         <Briefcase className="w-4 h-4" /> Post a Job
+                    </button>
+
+                    {/* New Tab for Managed Jobs */}
+                    <button
+                        onClick={() => { setActiveTab('MANAGE'); setMessage(null); }}
+                        className={`flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'MANAGE' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        <List className="w-4 h-4" /> My Posted Jobs
                     </button>
                 </nav>
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 sm:p-8">
-                {activeTab === 'COMPANY' ? (
+
+                {/* TAB 1: COMPANY */}
+                {activeTab === 'COMPANY' && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-                        <h2 className="text-xl font-bold text-slate-900 mb-6">Create Company Profile</h2>
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">
+                            {companyData ? 'Update Company Information' : 'Create Company Profile'}
+                        </h2>
                         <form onSubmit={handleCompanySubmit(onCompanySubmit)} className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                                <input {...registerCompany('name', { required: true })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-shadow" placeholder="Acme Corp" />
+                                <input {...registerCompany('name', { required: true })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="Acme Corp" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea {...registerCompany('description')} rows="4" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-shadow" placeholder="What does your company do?" />
+                                <textarea {...registerCompany('description')} rows="4" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="What does your company do?" />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
@@ -110,29 +167,34 @@ export default function EmployerDashboard() {
                                 </div>
                             </div>
                             <button type="submit" className="px-6 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors">
-                                Save Company Profile
+                                {companyData ? 'Save Changes' : 'Create Company'}
                             </button>
                         </form>
                     </motion.div>
-                ) : (
+                )}
+
+                {/* TAB 2: POST A JOB */}
+                {activeTab === 'JOB' && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
                         <h2 className="text-xl font-bold text-slate-900 mb-6">Post a New Job</h2>
-                        <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm p-4 rounded-lg mb-6">
-                            <strong>Note:</strong> You must have saved a Company Profile before posting jobs.
-                        </div>
+                        {!companyData && (
+                            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-lg mb-6">
+                                <strong>Wait!</strong> You must setup your Company Profile before you can post jobs.
+                            </div>
+                        )}
                         <form onSubmit={handleJobSubmit(onJobSubmit)} className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                                <input {...registerJob('title', { required: true })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="Senior React Developer" />
+                                <input {...registerJob('title', { required: true })} disabled={!companyData} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none disabled:bg-gray-100" placeholder="Senior React Developer" />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                                    <input {...registerJob('location', { required: true })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="New York, NY (or Remote)" />
+                                    <input {...registerJob('location', { required: true })} disabled={!companyData} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none disabled:bg-gray-100" placeholder="New York, NY (or Remote)" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
-                                    <select {...registerJob('type')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none bg-white">
+                                    <select {...registerJob('type')} disabled={!companyData} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none bg-white disabled:bg-gray-100">
                                         <option value="FULL_TIME">Full Time</option>
                                         <option value="PART_TIME">Part Time</option>
                                         <option value="CONTRACT">Contract</option>
@@ -141,19 +203,60 @@ export default function EmployerDashboard() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Salary (Optional)</label>
-                                    <input {...registerJob('salary')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="$120k - $150k" />
+                                    <input {...registerJob('salary')} disabled={!companyData} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none disabled:bg-gray-100" placeholder="$120k - $150k" />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Job Description</label>
-                                <textarea {...registerJob('description', { required: true })} rows="6" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none" placeholder="We are looking for..." />
+                                <textarea {...registerJob('description', { required: true })} disabled={!companyData} rows="6" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none disabled:bg-gray-100" placeholder="We are looking for..." />
                             </div>
-                            <button type="submit" className="px-6 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors">
+                            <button type="submit" disabled={!companyData} className="px-6 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                 Publish Job to Feed
                             </button>
                         </form>
                     </motion.div>
                 )}
+
+                {/* TAB 3: MANAGE POSTED JOBS */}
+                {activeTab === 'MANAGE' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">Jobs You've Posted</h2>
+
+                        {isLoadingJobs ? (
+                            <div className="text-gray-500">Loading jobs...</div>
+                        ) : !companyData || jobsData?.length === 0 ? (
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+                                <Briefcase className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                                <h3 className="text-lg font-medium text-gray-900">No jobs posted</h3>
+                                <p className="text-gray-500 mt-1">You haven't posted any jobs to the board yet.</p>
+                                <button onClick={() => setActiveTab('JOB')} className="mt-4 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+                                    Create your first job
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {jobsData.map((job) => (
+                                    <div key={job.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex justify-between items-center">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">{job.title}</h3>
+                                            <div className="flex gap-4 text-sm text-gray-500 mt-1">
+                                                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {job.location}</span>
+                                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Posted {new Date(job.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${job.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-300'
+                                                }`}>
+                                                {job.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+
             </div>
         </div>
     );
