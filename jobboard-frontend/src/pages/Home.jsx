@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, MapPin, DollarSign, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import { Link } from 'react-router-dom';
 
 export default function Home() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,9 +114,9 @@ export default function Home() {
                                 </div>
 
                                 <div className="flex items-center sm:flex-col sm:justify-center gap-2 mt-4 sm:mt-0">
-                                    <button className="px-4 py-2 bg-white text-slate-900 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
+                                    <Link to={`/jobs/${job.id}`} className="px-4 py-2 bg-white text-slate-900 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
                                         View Details
-                                    </button>
+                                    </Link>
                                 </div>
                             </motion.div>
                         ))}
