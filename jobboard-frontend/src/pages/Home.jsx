@@ -102,8 +102,8 @@ export default function Home() {
                                             <MapPin className="h-4 w-4" /> {job.location}
                                         </div>
                                         {job.salary && (
-                                            <div className="flex items-center gap-1">
-                                                <DollarSign className="h-4 w-4" /> {job.salary}
+                                            <div className="flex items-center gap-1.5">
+                                                {job.salary}
                                             </div>
                                         )}
                                         <div className="flex items-center gap-1">
