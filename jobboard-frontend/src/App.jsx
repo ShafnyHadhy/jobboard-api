@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import SeekerDashboard from './pages/SeekerDashboard';
 import EmployerDashboard from './pages/EmployerDashboard';
 import JobDetails from './pages/JobDetails';
+import ManageJobApplications from './pages/ManageJobApplications';
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/dashboard/seeker" element={<SeekerDashboard />} />
                 <Route path="/dashboard/employer" element={<EmployerDashboard />} />
+                <Route path="/dashboard/employer/jobs/:jobId/applications" element={<ManageJobApplications />} />
                 <Route path="/jobs/:jobId" element={<JobDetails />} />
                 <Route path="*" element={<div className="p-10 text-center text-xl">Building...</div>} />
               </Routes>

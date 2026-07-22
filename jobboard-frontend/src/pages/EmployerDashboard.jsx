@@ -5,7 +5,7 @@ import { Building, Briefcase, List, CheckCircle2, MapPin, Clock } from 'lucide-r
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 export default function EmployerDashboard() {
     const { user } = useAuth();
@@ -236,19 +236,23 @@ export default function EmployerDashboard() {
                         ) : (
                             <div className="space-y-4">
                                 {jobsData.map((job) => (
-                                    <div key={job.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex justify-between items-center">
+                                    <div key={job.id} className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow flex justify-between items-center bg-white">
                                         <div>
-                                            <h3 className="font-bold text-slate-900">{job.title}</h3>
-                                            <div className="flex gap-4 text-sm text-gray-500 mt-1">
-                                                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {job.location}</span>
-                                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Posted {new Date(job.createdAt).toLocaleDateString()}</span>
+                                            <Link to={`/dashboard/employer/jobs/${job.id}/applications`} className="font-bold text-slate-900 hover:text-blue-600 transition-colors text-lg">
+                                                {job.title}
+                                            </Link>
+                                            <div className="flex gap-4 text-sm text-gray-500 mt-2">
+                                                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {job.location}</span>
+                                                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Posted {new Date(job.createdAt).toLocaleDateString()}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${job.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-300'
-                                                }`}>
+                                        <div className="flex flex-col items-end gap-3">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${job.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
                                                 {job.status}
                                             </span>
+                                            <Link to={`/dashboard/employer/jobs/${job.id}/applications`} className="text-sm font-medium text-slate-900 hover:underline flex items-center gap-1">
+                                                Review Applicants &rarr;
+                                            </Link>
                                         </div>
                                     </div>
                                 ))}
