@@ -9,6 +9,7 @@ import SeekerDashboard from './pages/SeekerDashboard';
 import EmployerDashboard from './pages/EmployerDashboard';
 import JobDetails from './pages/JobDetails';
 import ManageJobApplications from './pages/ManageJobApplications';
+import Footer from '../components/layout/Footer';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ function App() {
                 <Route path="*" element={<div className="p-10 text-center text-xl">Building...</div>} />
               </Routes>
             </main>
+            <Footer />
           </div>
         </AuthProvider>
       </BrowserRouter>

@@ -8,12 +8,13 @@ import { Link } from 'react-router-dom';
 export default function Home() {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchInput, setSearchInput] = useState('');
+    const [page, setPage] = useState(1);
 
     // React Query fetches our jobs from the API
     const { data, isLoading, error } = useQuery({
-        queryKey: ['jobs', searchTerm],
+        queryKey: ['jobs', searchTerm, page],
         queryFn: async () => {
-            const { data } = await api.get(`/jobs${searchTerm ? `?search=${searchTerm}` : ''}`);
+            const { data } = await api.get(`/jobs?page=${page}${searchTerm ? `&search=${searchTerm}` : ''}`);
             return data;
         },
     });
@@ -21,6 +22,7 @@ export default function Home() {
     const handleSearch = (e) => {
         e.preventDefault();
         setSearchTerm(searchInput);
+        setPage(1);
     };
 
     return (
@@ -80,47 +82,72 @@ export default function Home() {
                         <p className="mt-2 text-gray-500">Try adjusting your search terms.</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        {data?.jobs.map((job, index) => (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, delay: index * 0.05 }}
-                                key={job.id}
-                                className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row justify-between gap-4"
-                            >
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-sm font-medium text-blue-600">{job.company?.name}</span>
-                                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
-                                            {job.type.replace('_', ' ')}
-                                        </span>
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
-                                    <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
-                                        <div className="flex items-center gap-1">
-                                            <MapPin className="h-4 w-4" /> {job.location}
+                    <>
+                        <div className="space-y-4">
+                            {data?.jobs.map((job, index) => (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                                    key={job.id}
+                                    className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row justify-between gap-4"
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-sm font-medium text-blue-600">{job.company?.name}</span>
+                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
+                                                {job.type.replace('_', ' ')}
+                                            </span>
                                         </div>
-                                        {job.salary && (
-                                            <div className="flex items-center gap-1.5">
-                                                {job.salary}
+                                        <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
+                                        <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
+                                            <div className="flex items-center gap-1">
+                                                <MapPin className="h-4 w-4" /> {job.location}
                                             </div>
-                                        )}
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="h-4 w-4" /> {new Date(job.createdAt).toLocaleDateString()}
+                                            {job.salary && (
+                                                <div className="flex items-center gap-1.5">
+                                                    {job.salary}
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="h-4 w-4" /> {new Date(job.createdAt).toLocaleDateString()}
+                                            </div>
                                         </div>
+                                        <p className="mt-3 text-sm text-gray-600 line-clamp-2">{job.description}</p>
                                     </div>
-                                    <p className="mt-3 text-sm text-gray-600 line-clamp-2">{job.description}</p>
-                                </div>
 
-                                <div className="flex items-center sm:flex-col sm:justify-center gap-2 mt-4 sm:mt-0">
-                                    <Link to={`/jobs/${job.id}`} className="px-4 py-2 bg-white text-slate-900 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
-                                        View Details
-                                    </Link>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                                    <div className="flex items-center sm:flex-col sm:justify-center gap-2 mt-4 sm:mt-0">
+                                        <Link to={`/jobs/${job.id}`} className="px-4 py-2 bg-white text-slate-900 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
+                                            View Details
+                                        </Link>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {data?.pagination && data.pagination.totalPages > 1 && (
+                            <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6">
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="px-5 py-2 border border-gray-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm text-gray-700">
+                                    Page <span className="font-bold text-slate-900">{page}</span> of <span className="font-bold text-slate-900">{data.pagination.totalPages}</span>
+                                </span>
+                                <button
+                                    onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))}
+                                    disabled={page === data.pagination.totalPages}
+                                    className="px-5 py-2 border border-gray-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

@@ -89,7 +89,7 @@ export default function JobDetails() {
 
                             <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-6">
                                 <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {jobData.location}</div>
-                                {jobData.salary && <div className="flex items-center gap-1.5"><DollarSign className="w-4 h-4" /> {jobData.salary}</div>}
+                                {jobData.salary && <div className="flex items-center gap-1.5">{jobData.salary}</div>}
                                 <div className="flex items-center gap-1.5"><Briefcase className="w-4 h-4" /> {jobData.type.replace('_', ' ')}</div>
                                 <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {new Date(jobData.createdAt).toLocaleDateString()}</div>
                             </div>
