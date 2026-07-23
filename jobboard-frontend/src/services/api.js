@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: 'https://jobboard-api-58qu.onrender.com/api',
 });
 
 // Automatically add the auth token to requests if it exists
