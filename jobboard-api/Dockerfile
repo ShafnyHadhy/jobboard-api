@@ -41,6 +41,7 @@ COPY --from=builder /app/generated ./generated
 
 # Copy source code
 COPY src ./src
+COPY prisma ./prisma
 COPY prisma.config.ts ./
 
 # Expose API port
