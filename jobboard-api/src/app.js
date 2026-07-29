@@ -10,6 +10,7 @@ const applicationRoutes = require('./routes/applications')
 const logger = require('./middleware/logger')
 
 const app = express()
+app.set('trust proxy', 1)
 
 // ─── Global Middleware 
 app.use(helmet())
